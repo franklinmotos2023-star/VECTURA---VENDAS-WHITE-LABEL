@@ -1,0 +1,203 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase 3: Primitive Definition & Global Helpers
+    // -------------------------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    // Enforce size limits on IDs to prevent Denial of Wallet
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'franklinmotos2023@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      ); 
+    }
+
+    // Size limit helpers
+    function isValidString(val, max) { return val is string && val.size() <= max; }
+
+    // -------------------------------------------------------------------------
+    // 1. Users Collection
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['uid', 'email', 'role']) && 
+               data.keys().size() <= 8 &&
+               data.uid == request.auth.uid &&
+               isValidString(data.email, 100) &&
+               data.role in ['admin', 'user'] &&
+               (data.get('nome', '') is string && data.get('nome', '').size() <= 100) &&
+               (data.get('cpf', '') is string && data.get('cpf', '').size() <= 20) &&
+               (data.get('cep', '') is string && data.get('cep', '').size() <= 20) &&
+               (data.get('telefone', '') is string && data.get('telefone', '').size() <= 20) &&
+               (data.get('rg', '') is string && data.get('rg', '').size() <= 20);
+      }
+
+      allow get: if isValidId(userId) && isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // No blanket list. Only admins can list users.
+      allow list: if isAdmin();
+      
+      allow create: if isValidId(userId) && isSignedIn() && request.auth.uid == userId && 
+                    isValidUser(incoming()) && 
+                    (incoming().role == 'user' || isAdmin()); // Prevent self-elevation
+                    
+      allow update: if isValidId(userId) && isSignedIn() && (
+        isAdmin() || 
+        (
+          request.auth.uid == userId &&
+          isValidUser(incoming()) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['nome', 'cpf', 'cep', 'telefone', 'rg']) &&
+          incoming().role == existing().role &&
+          incoming().uid == existing().uid
+        )
+      );
+
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Motos Collection (Public Read, Admin Write)
+    // -------------------------------------------------------------------------
+    match /motos/{motoId} {
+      function isValidMoto(data) {
+        return data.keys().hasAll(['placa', 'marcaModelo', 'anoFabricacao', 'anoModelo', 'precoAVista']) &&
+               data.keys().size() <= 20 &&
+               isValidString(data.placa, 20) &&
+               isValidString(data.marcaModelo, 100) &&
+               data.anoFabricacao is number &&
+               data.anoModelo is number &&
+               data.precoAVista is number &&
+               (data.get('quilometragem', '') is string && data.get('quilometragem', '').size() <= 50) &&
+               (data.get('statusRevisao', '') is string && data.get('statusRevisao', '').size() <= 50) &&
+               (data.get('statusDut', '') is string && data.get('statusDut', '').size() <= 50) &&
+               (data.get('fotos', []) is list && data.get('fotos', []).size() <= 20) &&
+               (data.get('cambio', '') is string && data.get('cambio', '').size() <= 50) &&
+               (data.get('combustivel', '') is string && data.get('combustivel', '').size() <= 50) &&
+               (data.get('descricao', '') is string && data.get('descricao', '').size() <= 2000);
+      }
+
+      // Public storefront
+      allow get, list: if true;
+      allow create: if isValidId(motoId) && isAdmin() && isValidMoto(incoming());
+      allow update: if isValidId(motoId) && isAdmin() && isValidMoto(incoming());
+      allow delete: if isValidId(motoId) && isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. Acessorios Collection (Public Read, Admin Write)
+    // -------------------------------------------------------------------------
+    match /acessorios/{acessorioId} {
+      function isValidAcessorio(data) {
+        return data.keys().hasAll(['nome', 'preco']) &&
+               data.keys().size() <= 20 &&
+               isValidString(data.nome, 100) &&
+               data.preco is number &&
+               (data.get('descricao', '') is string && data.get('descricao', '').size() <= 2000) &&
+               (data.get('precoPromocional', 0) is number) &&
+               (data.get('emPromocao', false) is bool) &&
+               (data.get('fotos', []) is list && data.get('fotos', []).size() <= 10) &&
+               (data.get('aplicacao', '') is string && data.get('aplicacao', '').size() <= 200) &&
+               (data.get('categoria', '') is string && data.get('categoria', '').size() <= 50) &&
+               (data.get('marcaMoto', '') is string && data.get('marcaMoto', '').size() <= 50) &&
+               (data.get('modeloMoto', '') is string && data.get('modeloMoto', '').size() <= 50) &&
+               (data.get('estoque', 0) is number) &&
+               (data.get('isArchived', false) is bool);
+      }
+
+      allow get, list: if true;
+      allow create: if isValidId(acessorioId) && isAdmin() && isValidAcessorio(incoming());
+      allow update: if isValidId(acessorioId) && isAdmin() && isValidAcessorio(incoming());
+      allow delete: if isValidId(acessorioId) && isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. Settings (Public Read, Admin Write)
+    // -------------------------------------------------------------------------
+    match /settings/{settingId} {
+      allow get, list: if isValidId(settingId);
+      allow create, update, delete: if isValidId(settingId) && isAdmin() && incoming().keys().size() <= 50;
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. Purchases (Admin Only)
+    // -------------------------------------------------------------------------
+    match /purchases/{purchaseId} {
+      function isValidPurchase(data) {
+        return data.keys().hasAll(['vendedorNome', 'vendedorCpfCnpj', 'valorTotal', 'entrada', 'valorFinanciado', 'dataCompra']) &&
+               data.keys().size() <= 30 &&
+               isValidString(data.vendedorNome, 100) &&
+               isValidString(data.vendedorCpfCnpj, 20) &&
+               data.valorTotal is number &&
+               data.entrada is number &&
+               data.valorFinanciado is number &&
+               isValidString(data.dataCompra, 50) &&
+               (data.get('status', 'em_estoque') in ['em_estoque', 'vendida', 'cancelada']);
+      }
+
+      allow get, list: if isAdmin();
+      allow create: if isValidId(purchaseId) && isAdmin() && isValidPurchase(incoming());
+      allow update: if isValidId(purchaseId) && isAdmin() && isValidPurchase(incoming()) && (
+        existing().status != 'cancelada' || isAdmin() // Terminal state lock bypass for admin
+      );
+      allow delete: if isValidId(purchaseId) && isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. Sales (Motorcycle Sales, Admin Only)
+    // -------------------------------------------------------------------------
+    match /sales/{saleId} {
+      function isValidSale(data) {
+        return data.keys().hasAll(['motoId', 'vendedorUid', 'valorVenda', 'dataVenda']) &&
+               data.keys().size() <= 40 &&
+               isValidString(data.motoId, 128) &&
+               isValidString(data.vendedorUid, 128) &&
+               data.valorVenda is number &&
+               isValidString(data.dataVenda, 50) &&
+               (data.get('status', 'pendente') in ['pendente', 'concluida', 'cancelada']);
+      }
+
+      allow get, list: if isAdmin();
+      allow create: if isValidId(saleId) && isValidSale(incoming());
+      allow update: if isValidId(saleId) && isAdmin() && isValidSale(incoming()) && (
+        existing().status != 'cancelada' || isAdmin() 
+      );
+      allow delete: if isValidId(saleId) && isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. Acessorio Sales (Public Create, Admin Manage)
+    // -------------------------------------------------------------------------
+    match /acessorio_sales/{saleId} {
+      function isValidAcessorioSale(data) {
+        return data.keys().hasAll(['items', 'valorTotal', 'dataVenda', 'compradorNome', 'compradorCpf', 'telefone']) &&
+               data.keys().size() <= 30 &&
+               data.items is list && data.items.size() > 0 && data.items.size() <= 50 &&
+               data.valorTotal is number && data.valorTotal >= 0 &&
+               isValidString(data.dataVenda, 50) &&
+               isValidString(data.compradorNome, 100) &&
+               isValidString(data.compradorCpf, 20) &&
+               isValidString(data.telefone, 20) &&
+               (data.get('status', 'pendente') in ['pendente', 'em_separacao', 'aguardando_cliente', 'concluida', 'cancelada']);
+      }
+
+      allow get, list: if isAdmin();
+      allow create: if isValidId(saleId) && isValidAcessorioSale(incoming());
+      allow update: if isValidId(saleId) && isAdmin() && isValidAcessorioSale(incoming()) && (
+        existing().status != 'concluida' || isAdmin()
+      );
+      allow delete: if isValidId(saleId) && isAdmin();
+    }
+  }
+}

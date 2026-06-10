@@ -1,0 +1,186 @@
+{
+  "entities": {
+    "Moto": {
+      "title": "Motorcycle",
+      "description": "A motorcycle available for sale",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "placa": { "type": "string" },
+        "marcaModelo": { "type": "string" },
+        "anoFabricacao": { "type": "integer" },
+        "anoModelo": { "type": "integer" },
+        "quilometragem": { "type": "string" },
+        "precoAVista": { "type": "number" },
+        "precoAntigo": { "type": "number" },
+        "statusRevisao": { "type": "string" },
+        "statusDut": { "type": "string" },
+        "fotos": { "type": "array", "items": { "type": "string" } },
+        "cambio": { "type": "string" },
+        "combustivel": { "type": "string" },
+        "descricao": { "type": "string" },
+        "equipamentos": { "type": "array", "items": { "type": "string" } },
+        "planos": { "type": "array", "items": { "type": "object" } }
+      },
+      "required": ["placa", "marcaModelo", "anoFabricacao", "anoModelo", "precoAVista"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A user of the system",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "nome": { "type": "string" },
+        "cpf": { "type": "string" },
+        "cep": { "type": "string" },
+        "telefone": { "type": "string" },
+        "rg": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Purchase": {
+      "title": "Purchase",
+      "description": "A purchase of a motorcycle for stock",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "motoInfo": { "type": "object" },
+        "vendedorNome": { "type": "string" },
+        "vendedorCpfCnpj": { "type": "string" },
+        "vendedorTelefone": { "type": "string" },
+        "vendedorEndereco": { "type": "string" },
+        "valorTotal": { "type": "number" },
+        "entrada": { "type": "number" },
+        "valorFinanciado": { "type": "number" },
+        "parcelas": { "type": "array", "items": { "type": "object" } },
+        "dataCompra": { "type": "string" },
+        "fotos": { "type": "array", "items": { "type": "string" } },
+        "observacoes": { "type": "string" },
+        "status": { "type": "string", "enum": ["em_estoque", "vendida", "cancelada"] },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["motoInfo", "vendedorNome", "vendedorCpfCnpj", "valorTotal", "entrada", "valorFinanciado", "dataCompra"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "A sale of a motorcycle to a client",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "motoId": { "type": "string" },
+        "motoMarcaModelo": { "type": "string" },
+        "motoPlaca": { "type": "string" },
+        "compradorNome": { "type": "string" },
+        "compradorCpf": { "type": "string" },
+        "telefone": { "type": "string" },
+        "email": { "type": "string" },
+        "cep": { "type": "string" },
+        "dataNascimento": { "type": "string" },
+        "possuiCnh": { "type": "boolean" },
+        "valorVenda": { "type": "number" },
+        "entrada": { "type": "number" },
+        "parcelas": { "type": "number" },
+        "valorParcela": { "type": "number" },
+        "valorVendaFinal": { "type": "number" },
+        "descontoAplicado": { "type": "number" },
+        "pagamentos": { "type": "array", "items": { "type": "object" } },
+        "pagamentoAVista": { "type": "boolean" },
+        "financiamentoBancario": { "type": "object" },
+        "diferenciais": { "type": "object" },
+        "observacoes": { "type": "string" },
+        "fotosRecibo": { "type": "array", "items": { "type": "string" } },
+        "dataVenda": { "type": "string" },
+        "dataFinalizacao": { "type": "string" },
+        "vendedorUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["pendente", "concluida", "cancelada"] }
+      },
+      "required": ["motoId", "vendedorUid", "valorVenda", "dataVenda"]
+    },
+    "Acessorio": {
+      "title": "Acessorio",
+      "description": "Motorcycle accessories for sale",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "descricao": { "type": "string" },
+        "preco": { "type": "number" },
+        "precoPromocional": { "type": "number" },
+        "emPromocao": { "type": "boolean" },
+        "fotos": { "type": "array", "items": { "type": "string" } },
+        "aplicacao": { "type": "string" },
+        "marcaMoto": { "type": "string" },
+        "modeloMoto": { "type": "string" },
+        "estoque": { "type": "number" },
+        "isArchived": { "type": "boolean" },
+        "categoria": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["nome", "preco"]
+    },
+    "AcessorioSale": {
+      "title": "Acessorio_Sale",
+      "description": "Sale record of an accessory item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "items": { "type": "array", "items": { "type": "object" } },
+        "valorTotal": { "type": "number" },
+        "compradorNome": { "type": "string" },
+        "compradorCpf": { "type": "string" },
+        "telefone": { "type": "string" },
+        "cep": { "type": "string" },
+        "endereco": { "type": "string" },
+        "dataVenda": { "type": "string" },
+        "status": { "type": "string" },
+        "whatsappAvisado": { "type": "boolean" },
+        "codigoConfirmacao": { "type": "string" },
+        "observacoes": { "type": "string" },
+        "fotosRecibo": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["items", "valorTotal", "dataVenda", "compradorNome"]
+    },
+    "AcessoriosConfig": {
+      "title": "AcessoriosConfig",
+      "description": "Configuration object for categories, makers, models",
+      "type": "object",
+      "properties": {
+        "marcas": { "type": "array", "items": { "type": "string" } },
+        "motos": { "type": "array", "items": { "type": "string" } },
+        "categorias": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "firestore": {
+    "motos": {
+      "schema": "Moto",
+      "description": "Collection of motorcycles for sale"
+    },
+    "users": {
+      "schema": "User",
+      "description": "Collection of users and their roles"
+    },
+    "purchases": {
+      "schema": "Purchase",
+      "description": "Collection of motorcycle purchases for stock"
+    },
+    "sales": {
+      "schema": "Sale",
+      "description": "Collection of motorcycle sales"
+    },
+    "acessorios": {
+      "schema": "Acessorio",
+      "description": "Accessories available"
+    },
+    "acessorio_sales": {
+      "schema": "AcessorioSale",
+      "description": "Accessory sales records"
+    },
+    "settings": {
+      "schema": "AcessoriosConfig",
+      "description": "Settings for accessories (e.g. settings/acessoriosConfig doc)"
+    }
+  }
+}
